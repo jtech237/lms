@@ -53,13 +53,13 @@ Projet pédagogique pour apprendre Next.js (App Router, TypeScript) et Prisma + 
    npx prisma migrate dev --name init
    ```
 
-   * Si tu rencontres une erreur de permission sur le schéma, connecte-toi en superuser Postgres et fais :
+    * Si tu rencontres une erreur de permission sur le schéma, connecte-toi en superuser Postgres et fais :
 
-     ```sql
-     ALTER DATABASE lms_dev OWNER TO <user>;
-     GRANT ALL ON SCHEMA public TO <user>;
-     ```
-   * Une fois les droits réglés, relance la commande.
+      ```sql
+      ALTER DATABASE lms_dev OWNER TO <user>;
+      GRANT ALL ON SCHEMA public TO <user>;
+      ```
+    * Une fois les droits réglés, relance la commande.
 
 5. (Optionnel) Lancer le seed pour remplir des données factices :
 
@@ -76,6 +76,64 @@ Projet pédagogique pour apprendre Next.js (App Router, TypeScript) et Prisma + 
    ```
 
    Par défaut sur [http://localhost:3000](http://localhost:3000).
+
+## 🔒 Authentification
+
+Le système d'authentification utilise Auth.js avec:
+
+- **Credential Provider** pour l'authentification email/mot de passe
+- **RBAC** (Role-Based Access Control) avec rôles STUDENT/TEACHER/ADMIN
+- **Bcryptjs** pour le hashage sécurisé des mots de passe
+- **Middleware** pour la protection des routes
+
+### 🔧 Installation
+
+- Installer les dépendances :
+   ```bash
+  npm install next-auth@beta bcryptjs
+  npm install @types/bcryptjs --save-dev # optional
+  # Add Shadcn/ui components
+  npx shadcn/ui@latest add form label card checkbox sonner button
+   ```
+- Variables d’environnement (`.env.example`) :
+   ```env
+   NEXTAUTH_URL="http://localhost:3000"
+   NEXTAUTH_SECRET="<une-clé-longue>"
+   DATABASE_URL="postgresql://<user>:<pwd>@localhost:5432/lms_dev"
+   ```
+
+### 🔑 Flow
+
+1. Inscription
+    * POST [/api/auth/register](http://localhost:3000/auth/register)
+    * Valide `name`, `email`, `password` via **Zod**
+    * Hash du mot de passe (bcryptjs)
+    * Création User en base
+2. Connexion
+    * Page [/auth/login](http://localhost:3000/auth/login) avec `signIn('credentials')`
+    * NextAuth `CredentialsProvider` :
+        * Vérifie email/password avec Prisma
+        * Stocke `id` & `role` dans JWT
+3. Session
+    * `session.strategy = 'jwt'`
+    * Callbacks :
+        * `jwt` : on ajoute `token.id`, `token.role`
+        * `session` : on peuple s`ession.user.id`, `session.user.role`
+4. Protection des routes
+    * `src/middleware.ts` :
+        * redirige non-auth sur `/dashboard/*`
+        * contrôle de rôle pour `/dashboard/teacher` et `/dashboard/admin`
+
+### 🛠️ Endpoints
+
+* POST /api/auth/register
+* POST /api/auth/get-user
+* /api/auth/*.js (NextAuth handler)
+
+### ⚙️ UI
+
+* LoginForm : React Hook Form + Zod + toast
+* RegisterForm : React Hook Form + Zod + toast
 
 ## 📦 Scripts utiles
 
