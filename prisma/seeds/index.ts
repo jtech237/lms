@@ -1,19 +1,27 @@
 import { PrismaClient, Prisma } from '@/generated/prisma';
 import { fakerFR } from '@faker-js/faker';
+import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
 // Fonction utilitaire pour generer les utilisateurs
-function generateUsers(role: 'STUDENT' | 'TEACHER', nb: number): Prisma.UserCreateInput[] {
+function generateUsers(
+  role: 'STUDENT' | 'TEACHER',
+  nb: number
+): Prisma.UserCreateInput[] {
   return Array.from({ length: nb }, () => {
     const sex = fakerFR.person.sex();
     const firstName = fakerFR.person.firstName(sex as 'male' | 'female');
     const lastName = fakerFR.person.lastName(sex as 'male' | 'female');
+    const createdAt = fakerFR.date.past({refDate: new Date()})
+    const updatedAt = fakerFR.date.recent({refDate: new Date()})
 
     return {
       name: `${firstName} ${lastName}`,
       email: fakerFR.internet.email({ firstName, lastName }),
       role: role,
+      createdAt,
+      updatedAt
     };
   });
 }
@@ -25,7 +33,6 @@ async function resetDatabase() {
   await prisma.user.deleteMany();
 }
 
-
 export async function main() {
   console.log('Seed start...');
   console.log('Resetting database...');
@@ -36,19 +43,31 @@ export async function main() {
   const teachers = generateUsers('TEACHER', 3);
 
   await prisma.$transaction(async (tx) => {
+
+    const pswd = await bcrypt.hash('12345678', 10)
     // Creation des étudiants
     console.log('Creating students...');
     const createdStudents = await Promise.all(
-      students.map(student => tx.user.create({ data: student })),
+      students.map((student) => tx.user.create({ data: {...student, passwordHash: pswd} }))
     );
-    console.table(createdStudents.map(s => ({ id: s.id, name: s.name, email: s.email, role: s.role })));
+    console.table(
+      createdStudents.map((s) => ({
+        id: s.id,
+        name: s.name,
+        email: s.email,
+        role: s.role,
+        password: '12345678'
+      }))
+    );
 
     // Création des enseignants
     console.log('Creating teachers...');
     const createdTeachers = await Promise.all(
-      teachers.map(teacher => tx.user.create({ data: teacher })),
+      teachers.map((teacher) => tx.user.create({ data: { ...teacher, passwordHash: pswd } }))
     );
-    console.table(createdTeachers.map(t => ({ id: t.id, email: t.email, role: t.role })));
+    console.table(
+      createdTeachers.map((t) => ({ id: t.id, email: t.email, role: t.role, password: '12345678' }))
+    );
 
     console.log('Creating courses, lessons and enrollments...');
     for (const teacher of createdTeachers) {
@@ -61,11 +80,14 @@ export async function main() {
             coverImage: fakerFR.image.urlPicsumPhotos(),
             authorId: teacher.id,
             lessons: {
-              create: Array.from({ length: Math.floor(Math.random() * 5 + 3) }, (_, index) => ({
-                title: fakerFR.lorem.sentence(),
-                content: fakerFR.lorem.paragraphs({ min: 3, max: 10 }),
-                order: index + 1,
-              })),
+              create: Array.from(
+                { length: Math.floor(Math.random() * 5 + 3) },
+                (_, index) => ({
+                  title: fakerFR.lorem.sentence(),
+                  content: fakerFR.lorem.paragraphs({ min: 3, max: 10 }),
+                  order: index + 1,
+                })
+              ),
             },
           },
         });
@@ -76,22 +98,24 @@ export async function main() {
           .slice(0, Math.floor(Math.random() * 10) + 5); // 5 à 15 étudiants
 
         await Promise.all(
-          randomStudents.map(student =>
+          randomStudents.map((student) =>
             tx.enrollment.create({
               data: {
                 studentId: student.id,
                 courseId: course.id,
                 progress: Math.floor(Math.random() * 100),
               },
-            }),
-          ));
-        console.log(`Cours "${course.title}" créé avec ${randomStudents.length} étudiants inscrits`);
+            })
+          )
+        );
+        console.log(
+          `Cours "${course.title}" créé avec ${randomStudents.length} étudiants inscrits`
+        );
       }
     }
   });
 
   console.log('Seeding terminé!');
-
 }
 
 main()
@@ -101,5 +125,4 @@ main()
   })
   .finally(async () => {
     await prisma.$disconnect();
-  })
-;
+  });
