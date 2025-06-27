@@ -9,7 +9,7 @@ export const registerSchema = z
       .string()
       .min(8, 'Le mot de passe doit contenir au moins 8 caractères')
       .regex(
-        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%#*?&]{8,}$/,
         'Le mot de passe doit contenir au moins une majuscule, une minuscule, un chiffre et un caractère spécial'
       ),
     passwordConfirmation: z.string(),
@@ -29,7 +29,7 @@ export const createUserSchema = z.object({
     .string()
     .min(8, 'Le mot de passe doit contenir au moins 8 caractères')
     .regex(
-      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%#*?&])[A-Za-z\d@$!%#*?&]{8,}$/,
       'Le mot de passe doit contenir au moins une majuscule, une minuscule, un chiffre et un caractère spécial'
     ),
   acceptTerms: z.boolean().refine((val) => val, {
